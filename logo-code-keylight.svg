@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Code Keylight">
+  <defs>
+    <!-- screen body: github-dark with a faint purple lean -->
+    <linearGradient id="screen" x1="150" y1="150" x2="362" y2="362" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1b2330"/>
+      <stop offset="1" stop-color="#0b0e14"/>
+    </linearGradient>
+    <!-- light spilling out of the screen, bright near the panel, fading to the tips -->
+    <linearGradient id="ray" x1="256" y1="232" x2="256" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0"  stop-color="#a06bf2" stop-opacity="0.85"/>
+      <stop offset="1"  stop-color="#a06bf2" stop-opacity="0"/>
+    </linearGradient>
+    <!-- soft bloom halo behind the panel -->
+    <radialGradient id="bloom" cx="256" cy="252" r="170" gradientUnits="userSpaceOnUse">
+      <stop offset="0"   stop-color="#a06bf2" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#7d4ad6" stop-opacity="0.18"/>
+      <stop offset="1"   stop-color="#6821af" stop-opacity="0"/>
+    </radialGradient>
+    <!-- the glyphs read as code, lit up -->
+    <linearGradient id="glyph" x1="196" y1="246" x2="316" y2="314" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d2a8ff"/>
+    </linearGradient>
+    <!-- inner top sheen so the screen looks emissive -->
+    <radialGradient id="sheen" cx="256" cy="172" r="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a06bf2" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#a06bf2" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- bloom + key-light rays sit behind the panel; the panel occludes the centre
+       so light only spills out around all four edges = it glows like a softbox -->
+  <circle cx="256" cy="252" r="170" fill="url(#bloom)"/>
+  <g stroke="url(#ray)" stroke-width="10" stroke-linecap="round">
+    <line x1="256" y1="232" x2="256" y2="46"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(22.5 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(45 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(67.5 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(90 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(112.5 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(135 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(157.5 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(180 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(202.5 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(225 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(247.5 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(270 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(292.5 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(315 256 256)"/>
+    <line x1="256" y1="232" x2="256" y2="46" transform="rotate(337.5 256 256)"/>
+  </g>
+
+  <!-- the screen / IDE panel -->
+  <rect x="150" y="150" width="212" height="212" rx="40"
+        fill="url(#screen)" stroke="#3a2f57" stroke-width="2"/>
+  <rect x="150" y="150" width="212" height="212" rx="40" fill="url(#sheen)"/>
+
+  <!-- traffic-light dots: it's a window -->
+  <circle cx="190" cy="190" r="8" fill="#ff5f56"/>
+  <circle cx="216" cy="190" r="8" fill="#ffbd2e"/>
+  <circle cx="242" cy="190" r="8" fill="#27c93f"/>
+
+  <!-- &lt;/&gt; : it's code -->
+  <g fill="none" stroke="url(#glyph)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="228,250 196,282 228,314"/>
+    <line x1="272" y1="244" x2="240" y2="320"/>
+    <polyline points="284,250 316,282 284,314"/>
+  </g>
+</svg>
