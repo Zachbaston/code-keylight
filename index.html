@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Code Keylight — a fake AI coding screen you can use as a bright key light for video. Free & open source, runs entirely in your browser.">
+<link rel="icon" href="logo.png">
+<title>Code Keylight</title>
+<!--
+  Code Keylight
+  A fake, animated "AI is coding" screen — bright enough to act as a key light
+  for video. The reflection in your glasses reads as live code being written.
+
+  Free & open source under the MIT License. No tracking, no network calls,
+  nothing leaves your machine. Fork it, host it, make it yours.
+  To rebrand, edit the BRAND config near the top of the <script> below.
+
+  Made by Zach Baston · Bizcannon. 🔫
+-->
+<style>
+  :root{
+    --bg:#ffffff;
+    --panel:#fbfbfd;
+    --panel2:#f3f4f6;
+    --border:#e6e8eb;
+    --text:#0a0c10;
+    --muted:#57606a;
+    --kw:#b31237;
+    --str:#06621f;
+    --fn:#5a1bb0;
+    --num:#0035c5;
+    --type:#b8480a;
+    --accent:#6821af;       /* Bizcannon purple */
+    --glow:0;               /* brightness boost 0..1 */
+    --fz:15px;              /* code font size */
+  }
+  html.dark{
+    --bg:#0d1117;
+    --panel:#0d1117;
+    --panel2:#161b22;
+    --border:#21262d;
+    --text:#e6edf3;
+    --muted:#8b949e;
+    --kw:#ff7b72;
+    --str:#a5d6ff;
+    --fn:#d2a8ff;
+    --num:#79c0ff;
+    --type:#ffa657;
+    --accent:#a06bf2;       /* brighter Bizcannon purple for dark bg */
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+    background:var(--bg);
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    font-size:var(--fz);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* top bar */
+  .topbar{
+    display:flex;align-items:center;gap:12px;
+    padding:9px 14px;
+    background:var(--panel2);
+    border-bottom:1px solid var(--border);
+    flex:0 0 auto;
+  }
+  .dots{display:flex;gap:7px;}
+  .dots i{width:12px;height:12px;border-radius:50%;display:block;}
+  .dots i:nth-child(1){background:#ff5f56;}
+  .dots i:nth-child(2){background:#ffbd2e;}
+  .dots i:nth-child(3){background:#27c93f;}
+  .title{font-size:13px;color:var(--muted);margin-left:6px;}
+  .working{
+    margin-left:auto;display:flex;align-items:center;gap:8px;
+    font-size:13px;color:var(--accent);font-weight:600;
+  }
+  .pulse{width:9px;height:9px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 0 0 rgba(217,119,87,.6);animation:pulse 1.4s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(217,119,87,.5);}
+    70%{box-shadow:0 0 0 10px rgba(217,119,87,0);}
+    100%{box-shadow:0 0 0 0 rgba(217,119,87,0);}
+  }
+
+  /* main layout */
+  .main{flex:1 1 auto;display:flex;min-height:0;}
+
+  /* file tree */
+  .tree{
+    flex:0 0 250px;background:var(--panel);border-right:1px solid var(--border);
+    padding:14px 10px;overflow:hidden;font-size:13.5px;
+  }
+  .tree .head{color:var(--muted);text-transform:uppercase;font-size:11px;
+    letter-spacing:.08em;padding:4px 8px 10px;}
+  .tree .row{padding:4px 8px;border-radius:6px;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tree .row.dir{color:var(--text);font-weight:600;}
+  .tree .row.indent{padding-left:24px;}
+  .tree .row.active{background:var(--panel2);color:var(--text);}
+
+  /* editor */
+  .editor{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;background:var(--bg);}
+  .tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);flex:0 0 auto;}
+  .tab{padding:9px 18px;font-size:13px;color:var(--muted);
+    border-right:1px solid var(--border);background:var(--panel);}
+  .tab.active{background:var(--bg);color:var(--text);
+    border-bottom:2px solid var(--accent);}
+  .code-wrap{flex:1 1 auto;overflow:hidden;position:relative;}
+  .code{padding:16px 0;}
+  .ln{display:flex;align-items:flex-start;line-height:1.55;}
+  .ln .num{flex:0 0 auto;min-width:3ch;text-align:right;color:var(--muted);
+    opacity:.6;user-select:none;padding:0 18px 0 14px;}
+  .ln .txt{flex:1 1 auto;white-space:pre-wrap;word-break:break-word;
+    tab-size:2;padding-right:24px;font-weight:500;min-height:1em;}
+
+  /* reflection mode: big, bold, high-contrast text. long lines wrap like a
+     zoomed-in IDE, and the line number stays pinned to the first visual row */
+  html.reflect .ln{line-height:1.7;}
+  html.reflect .ln .txt{font-weight:800;letter-spacing:.4px;}
+  html.reflect .ln .num{font-weight:700;opacity:.8;}
+  html.reflect .cursor{width:0.5em;}
+
+  /* agent log */
+  .log{
+    flex:0 0 320px;background:var(--panel);border-left:1px solid var(--border);
+    padding:14px;overflow:hidden;font-size:13px;display:flex;flex-direction:column;
+  }
+  .log .head{color:var(--accent);font-weight:700;font-size:12px;
+    letter-spacing:.05em;text-transform:uppercase;margin-bottom:12px;}
+  .log .line{margin-bottom:9px;color:var(--muted);line-height:1.4;}
+  .log .line b{color:var(--text);font-weight:600;}
+  .log .line .ok{color:var(--str);}
+
+  /* status bar */
+  .status{
+    flex:0 0 auto;display:flex;align-items:center;gap:18px;
+    background:var(--accent);color:#fff;padding:5px 16px;font-size:12px;
+  }
+  .status .sp{margin-left:auto;}
+
+  /* syntax */
+  .cm{color:var(--muted);font-style:italic;}
+  .kw{color:var(--kw);}
+  .str{color:var(--str);}
+  .fn{color:var(--fn);}
+  .num{color:var(--num);}
+  .ty{color:var(--type);}
+
+  .cursor{display:inline-block;width:8px;height:1.05em;
+    background:var(--accent);vertical-align:text-bottom;
+    animation:blink 1s steps(1) infinite;margin-left:1px;border-radius:1px;}
+  @keyframes blink{50%{opacity:0;}}
+
+  /* brightness boost overlay */
+  #boost{position:fixed;inset:0;background:#fff;pointer-events:none;
+    opacity:var(--glow);z-index:50;transition:opacity .2s;mix-blend-mode:screen;}
+
+  .hint{position:fixed;bottom:78px;right:14px;z-index:60;
+    background:rgba(0,0,0,.72);color:#fff;font-size:11px;line-height:1.7;
+    padding:8px 12px;border-radius:8px;opacity:.0;transition:opacity .3s;
+    pointer-events:none;font-family:ui-sans-serif,system-ui,sans-serif;}
+  .hint.show{opacity:1;}
+
+  /* always-visible help dot — faint so it barely shows in a reflection,
+     brightens on hover. click/tap = controls (keyboard-free access too) */
+  #help{position:fixed;bottom:38px;right:14px;z-index:61;
+    width:30px;height:30px;border-radius:50%;cursor:pointer;user-select:none;
+    display:flex;align-items:center;justify-content:center;
+    font:700 16px ui-sans-serif,system-ui,sans-serif;
+    background:var(--accent);color:#fff;opacity:.45;
+    box-shadow:0 2px 12px rgba(0,0,0,.22);
+    transition:opacity .2s,transform .2s;}
+  #help:hover{opacity:1;transform:scale(1.08);}
+  .hint kbd{background:#fff;color:#000;border-radius:4px;padding:0 5px;
+    font-family:inherit;font-size:10px;}
+
+  /* branding splash — shows briefly on load, then fades so it never
+     appears while you're recording */
+  #splash{position:fixed;inset:0;z-index:100;display:flex;
+    flex-direction:column;align-items:center;justify-content:center;gap:10px;
+    background:var(--bg);color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;
+    transition:opacity .6s ease;}
+  #splash.hide{opacity:0;pointer-events:none;}
+  #splash .s-logo{width:148px;height:148px;object-fit:contain;margin-bottom:6px;
+    filter:drop-shadow(0 6px 26px rgba(104,33,175,.40));
+    animation:logoIn .7s cubic-bezier(.2,.7,.2,1) both;}
+  @keyframes logoIn{from{opacity:0;transform:scale(.82) translateY(8px);}
+    to{opacity:1;transform:none;}}
+  #splash .s-name{font-size:44px;font-weight:800;letter-spacing:-.02em;}
+  #splash .s-tag{font-size:16px;color:var(--muted);max-width:32ch;
+    text-align:center;line-height:1.5;}
+  #splash .s-credit{font-size:12.5px;color:var(--muted);opacity:.65;
+    margin-top:10px;letter-spacing:.04em;text-transform:uppercase;}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="dots"><i></i><i></i><i></i></span>
+    <span class="title">claude-code — /Users/bizcannon/projects/code-keylight</span>
+    <span class="working"><span class="pulse"></span><span id="working-text">Claude is working…</span></span>
+  </div>
+
+  <div class="main">
+    <div class="tree" id="tree"></div>
+
+    <div class="editor">
+      <div class="tabs"><div class="tab active" id="tab">App.tsx</div></div>
+      <div class="code-wrap" id="wrap">
+        <div class="code" id="code"></div>
+      </div>
+    </div>
+
+    <div class="log">
+      <div class="head">◇ Agent Activity</div>
+      <div id="loglines"></div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>● <span id="status-file">main</span></span>
+    <span>UTF-8</span>
+    <span id="status-lang">TypeScript</span>
+    <span class="sp"></span>
+    <span id="status-clock"></span>
+    <span>Claude Opus</span>
+  </div>
+
+  <div id="boost"></div>
+  <div id="splash">
+    <img class="s-logo" src="logo.png" alt="Bizcannon">
+    <div class="s-name"></div>
+    <div class="s-tag"></div>
+    <div class="s-credit"></div>
+  </div>
+  <div class="hint" id="hint">
+    <kbd>R</kbd> reflection mode (big) &nbsp; <kbd>[</kbd>/<kbd>]</kbd> font size<br>
+    <kbd>F</kbd> fullscreen &nbsp; <kbd>D</kbd> dark/light &nbsp;
+    <kbd>B</kbd> brightness &nbsp; <kbd>+</kbd>/<kbd>-</kbd> speed<br>
+    <kbd>?</kbd> show / hide these controls
+  </div>
+  <div id="help" title="Controls — click or press ?">?</div>
+
+<script>
+// ============================================================
+//  Code Keylight — BRAND config (edit these freely)
+// ============================================================
+const BRAND = {
+  name: "Code Keylight",
+  tagline: "A fake AI coding screen, bright enough to light you up on camera.",
+  credit: "Built by Bizcannon",   // shown subtly on the intro splash — set "" to hide
+  showSplash: true     // brief intro that fades out before you record
+};
+document.title = BRAND.name;
+
+(function showSplash(){
+  const s = document.getElementById("splash");
+  s.querySelector(".s-name").textContent   = BRAND.name;
+  s.querySelector(".s-tag").textContent     = BRAND.tagline;
+  s.querySelector(".s-credit").textContent  = BRAND.credit;
+  if(!BRAND.showSplash){ s.remove(); return; }
+  setTimeout(()=>{ s.classList.add("hide");
+    setTimeout(()=>s.remove(), 700); }, 2200);
+})();
+
+// ------- the "project" being built -------
+const files = [
+  {
+    name:"Dashboard.tsx", path:"src/components/Dashboard.tsx", lang:"TypeScript",
+    code:
+`import { useState, useEffect } from "react";
+import { fetchMetrics } from "../api/metrics";
+import { Card } from "./Card";
+
+// Live analytics dashboard — @bizcannon
+export function Dashboard() {
+  const [metrics, setMetrics] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMetrics().then((data) => {
+      setMetrics(data);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <Spinner label="Loading metrics" />;
+
+  return (
+    <section className="grid">
+      {metrics.map((m) => (
+        <Card key={m.id} title={m.name} value={m.value} trend={m.delta} />
+      ))}
+    </section>
+  );
+}
+`
+  },
+  {
+    name:"auth.ts", path:"src/api/auth.ts", lang:"TypeScript",
+    code:
+`import { sign, verify } from "jsonwebtoken";
+
+const SECRET = process.env.JWT_SECRET ?? "bizcannon-dev";
+const EXPIRES = "24h";
+
+export interface Session {
+  userId: string;
+  role: "admin" | "member";
+}
+
+export function createToken(session: Session): string {
+  return sign(session, SECRET, { expiresIn: EXPIRES });
+}
+
+export function verifyToken(token: string): Session | null {
+  try {
+    return verify(token, SECRET) as Session;
+  } catch (err) {
+    console.warn("invalid token", err);
+    return null;
+  }
+}
+`
+  },
+  {
+    name:"main.py", path:"server/main.py", lang:"Python",
+    code:
+`from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from datetime import datetime
+
+app = FastAPI(title="Bizcannon Keylight API")
+
+class Task(BaseModel):
+    id: int
+    title: str
+    done: bool = False
+
+tasks: list[Task] = []
+
+@app.get("/tasks")
+def list_tasks():
+    return {"tasks": tasks, "count": len(tasks)}
+
+@app.post("/tasks")
+def create_task(task: Task):
+    if any(t.id == task.id for t in tasks):
+        raise HTTPException(409, "task already exists")
+    tasks.append(task)
+    return {"created": task.id, "at": datetime.utcnow()}
+`
+  },
+  {
+    name:"utils.ts", path:"src/lib/utils.ts", lang:"TypeScript",
+    code:
+`// Small helpers used across the app — by zach baston
+
+export function debounce<T extends (...a: any[]) => void>(fn: T, ms = 200) {
+  let timer: ReturnType<typeof setTimeout>;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+export function formatBytes(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  while (bytes >= 1024 && i < units.length - 1) {
+    bytes /= 1024;
+    i++;
+  }
+  return bytes.toFixed(1) + " " + units[i];
+}
+
+export const clamp = (n: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, n));
+`
+  }
+];
+
+const logScript = [
+  ["Reading ", "project structure", "…"],
+  ["Planning ", "component layout", ""],
+  ["Creating ", "Dashboard.tsx", ""],
+  ["Wiring up ", "metrics API", " hooks"],
+  ["Adding ", "JWT auth", " module"],
+  ["Generating ", "FastAPI routes", ""],
+  ["Refactoring ", "shared utils", ""],
+  ["Running ", "type-check", " ✓"],
+  ["Running ", "test suite", " ✓ 24 passed"],
+  ["Formatting ", "with prettier", ""],
+  ["Committing ", "changes", " ✓"],
+  ["Pushing to ", "bizcannon/code-keylight", " ✓"],
+];
+
+// ------- syntax highlighter -------
+const KEYWORDS = ["const","let","var","function","return","if","else","for","while",
+"import","from","export","default","class","extends","new","await","async","try",
+"catch","finally","throw","typeof","instanceof","of","this","super","yield","switch",
+"case","break","continue","void","delete","def","self","None","True","False","and",
+"or","not","elif","with","as","lambda","pass","raise","interface","type","enum",
+"public","private","protected","static","readonly","implements","in","is"];
+
+const RE = new RegExp(
+  "(//[^\\n]*|#[^\\n]*|/\\*[\\s\\S]*?\\*/)" +                 // 1 comment
+  "|(\"(?:\\\\.|[^\"\\\\\\n])*\"?|'(?:\\\\.|[^'\\\\\\n])*'?|`(?:\\\\.|[^`\\\\])*`?)" + // 2 string
+  "|\\b(" + KEYWORDS.join("|") + ")\\b" +                     // 3 keyword
+  "|\\b(\\d[\\d_.]*)\\b" +                                    // 4 number
+  "|([A-Za-z_$][\\w$]*)(?=\\s*\\()" +                         // 5 function call
+  "|\\b([A-Z][A-Za-z0-9_]*)\\b",                              // 6 Type/Class
+  "g"
+);
+
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+function highlight(code){
+  let out="",last=0,m;
+  RE.lastIndex=0;
+  while((m=RE.exec(code))){
+    out+=esc(code.slice(last,m.index));
+    let cls = m[1]?"cm":m[2]?"str":m[3]?"kw":m[4]?"num":m[5]?"fn":"ty";
+    out+=`<span class="${cls}">${esc(m[0])}</span>`;
+    last=m.index+m[0].length;
+    if(m[0].length===0)RE.lastIndex++;
+  }
+  out+=esc(code.slice(last));
+  return out;
+}
+
+// ------- engine -------
+const codeEl=document.getElementById("code");
+const wrap=document.getElementById("wrap");
+const tab=document.getElementById("tab");
+const tree=document.getElementById("tree");
+const loglines=document.getElementById("loglines");
+const statusFile=document.getElementById("status-file");
+const statusLang=document.getElementById("status-lang");
+const workingText=document.getElementById("working-text");
+
+let speed=1; // multiplier
+
+function buildTree(activePath){
+  const dirs={};
+  files.forEach(f=>{
+    const parts=f.path.split("/");
+    const dir=parts.slice(0,-1).join("/");
+    (dirs[dir]=dirs[dir]||[]).push({name:parts[parts.length-1],path:f.path});
+  });
+  let html=`<div class="head">Explorer</div><div class="row dir">▾ code-keylight</div>`;
+  Object.keys(dirs).forEach(dir=>{
+    html+=`<div class="row dir indent">▾ ${dir}/</div>`;
+    dirs[dir].forEach(f=>{
+      const a=f.path===activePath?" active":"";
+      html+=`<div class="row indent${a}" style="padding-left:40px">${f.name}</div>`;
+    });
+  });
+  tree.innerHTML=html;
+}
+
+function render(text){
+  let display=text;
+  // in reflection mode, drop leading indentation so lines stay flush-left
+  // instead of drifting off the right edge of the reflection
+  if(document.documentElement.classList.contains("reflect")){
+    display=text.replace(/^[ \t]+/gm,"");
+  }
+  const lines=display.split("\n");
+  let out="";
+  for(let i=0;i<lines.length;i++){
+    const last=i===lines.length-1?'<span class="cursor"></span>':"";
+    out+='<div class="ln"><span class="num">'+(i+1)+
+         '</span><span class="txt">'+highlight(lines[i])+last+'</span></div>';
+  }
+  codeEl.innerHTML=out;
+  wrap.scrollTop=wrap.scrollHeight;
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function typeFile(file){
+  tab.textContent=file.name;
+  statusFile.textContent=file.path;
+  statusLang.textContent=file.lang;
+  workingText.textContent="Editing "+file.name;
+  buildTree(file.path);
+
+  let shown="";
+  for(let i=0;i<file.code.length;i++){
+    const ch=file.code[i];
+    shown+=ch;
+    render(shown);
+    let d;
+    if(ch==="\n") d=90+Math.random()*120;
+    else if(ch===" ") d=14+Math.random()*30;
+    else d=18+Math.random()*55;
+    // occasional thinking pause
+    if(Math.random()<0.012) d+=350+Math.random()*500;
+    await sleep(d/speed);
+  }
+  workingText.textContent="Saved "+file.name+" ✓";
+  await sleep(1300/speed);
+}
+
+let logIdx=0;
+function pushLog(){
+  const item=logScript[logIdx%logScript.length];
+  logIdx++;
+  const div=document.createElement("div");
+  div.className="line";
+  const okClass=item[2].includes("✓")||item[2].includes("passed")?' class="ok"':'';
+  div.innerHTML=item[0]+"<b>"+item[1]+"</b>"+"<span"+okClass+">"+item[2]+"</span>";
+  loglines.prepend(div);
+  while(loglines.children.length>12)loglines.lastChild.remove();
+}
+
+async function loop(){
+  // seed a few log lines
+  for(let i=0;i<4;i++){pushLog();}
+  let fi=0;
+  setInterval(pushLog, 2600);
+  while(true){
+    await typeFile(files[fi%files.length]);
+    fi++;
+  }
+}
+
+// clock
+function tick(){
+  const d=new Date();
+  document.getElementById("status-clock").textContent=
+    d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+}
+tick(); setInterval(tick,10000);
+
+// ------- controls -------
+const root=document.documentElement;
+let glow=0;
+const hint=document.getElementById("hint");
+let hintPinned=false;
+function flashHint(){
+  if(hintPinned) return;            // pinned = stays put, no auto-hide
+  hint.classList.add("show");
+  clearTimeout(flashHint._t);
+  flashHint._t=setTimeout(()=>hint.classList.remove("show"),2200);
+}
+flashHint();
+
+let fontPx=15;
+function setFont(px){
+  fontPx=Math.max(11,Math.min(72,px));
+  root.style.setProperty("--fz",fontPx+"px");
+  flashHint();
+}
+document.addEventListener("keydown",e=>{
+  const k=e.key.toLowerCase();
+  if(k==="f"){
+    if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }else if(k==="d"){
+    root.classList.toggle("dark");
+  }else if(k==="r"){
+    root.classList.toggle("reflect");
+    setFont(root.classList.contains("reflect")?32:15);
+  }else if(k==="b"){
+    glow=glow>=0.6?0:glow+0.2;
+    root.style.setProperty("--glow",glow.toFixed(2));
+    flashHint();
+  }else if(k==="+"||k==="="){
+    speed=Math.min(speed+0.5,5); flashHint();
+  }else if(k==="-"||k==="_"){
+    speed=Math.max(speed-0.5,0.5); flashHint();
+  }else if(k==="]"||k==="arrowup"){
+    e.preventDefault(); setFont(fontPx+2);
+  }else if(k==="["||k==="arrowdown"){
+    e.preventDefault(); setFont(fontPx-2);
+  }else if(k==="?"||k==="h"){
+    toggleHint();
+  }
+});
+
+// the always-visible "?" dot: tap to pin/unpin, hover to peek
+function toggleHint(){
+  hintPinned=!hintPinned;
+  clearTimeout(flashHint._t);
+  hint.classList.toggle("show",hintPinned);
+}
+const help=document.getElementById("help");
+help.addEventListener("click",toggleHint);
+help.addEventListener("mouseenter",()=>{
+  if(hintPinned) return;
+  clearTimeout(flashHint._t); hint.classList.add("show");
+});
+help.addEventListener("mouseleave",()=>{
+  if(hintPinned) return;
+  flashHint._t=setTimeout(()=>hint.classList.remove("show"),400);
+});
+
+// ---- for the curious who pop open devtools ----
+console.log(
+  "%c Code Keylight %c built by Bizcannon · Zach Baston ",
+  "font:600 13px ui-monospace,monospace;color:#fff;background:#6821af;padding:3px 8px;border-radius:5px 0 0 5px;",
+  "font:600 13px ui-monospace,monospace;color:#6821af;background:#f3eaff;padding:3px 8px;border-radius:0 5px 5px 0;"
+);
+
+loop();
+</script>
+</body>
+</html>

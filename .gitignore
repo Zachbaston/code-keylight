@@ -1,0 +1,10 @@
+# Local Claude Code settings (machine-specific, keep out of public repo)
+.claude/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+node_modules/
