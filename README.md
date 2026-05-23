@@ -41,7 +41,7 @@ Open `index.html` and edit the `BRAND` block near the top of the `<script>`:
 const BRAND = {
   name: "Code Keylight",
   tagline: "A fake AI coding screen, bright enough to light you up on camera.",
-  credit: "Built by Bizcannon",   // shows small on the intro splash — set "" to hide
+  credit: "Built by Biz Cannon",   // shows small on the intro splash — set "" to hide
   showSplash: true                // brief intro that fades out before you record
 };
 ```
@@ -70,4 +70,4 @@ runs in your browser, and the page works fully offline.
 
 ---
 
-Built by **Bizcannon**.
+Built by **Biz Cannon**.

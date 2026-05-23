@@ -1,6 +1,9 @@
 # Local Claude Code settings (machine-specific, keep out of public repo)
 .claude/
 
+# Local handoff doc (contains local file paths — keep out of public repo)
+code-keylight-brief.md
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
